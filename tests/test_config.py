@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from sinogpt.config import ModelConfig
+from sinogpt.config import ModelConfig, load_config
 from sinogpt.seed import seed_everything
 
 
@@ -19,3 +19,12 @@ def test_seed_repeats_torch_values() -> None:
     first = torch.rand(3)
     seed_everything(17)
     assert torch.equal(first, torch.rand(3))
+
+
+def test_pilot_configs_share_model_and_data_but_extend_training() -> None:
+    """冒烟阶段与完整阶段应从相同模型和数据配置连续恢复。"""
+    stage_model, stage_data, stage_train = load_config("configs/tiny_30m_pilot_stage1.yaml")
+    full_model, full_data, full_train = load_config("configs/tiny_30m_pilot.yaml")
+    assert (stage_model, stage_data) == (full_model, full_data)
+    assert (stage_train.max_steps, stage_train.checkpoint_every) == (100, 100)
+    assert (full_train.max_steps, full_train.checkpoint_every) == (1250, 250)
