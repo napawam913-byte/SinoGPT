@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from sinogpt.data.sft import DEFAULT_SYSTEM_PROMPT, export_coig_records
+from sinogpt.tokenizer import load_tokenizer
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -21,6 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--validation-count", type=int, default=500, help="验证集问答对数量")
     parser.add_argument("--test-count", type=int, default=500, help="测试集问答对数量")
     parser.add_argument("--system-prompt", default=DEFAULT_SYSTEM_PROMPT, help="固定的系统提示词")
+    parser.add_argument("--tokenizer", required=True, type=Path, help="预训练阶段冻结的 tokenizer.json")
+    parser.add_argument("--block-size", type=int, default=512, help="模型上下文长度")
     return parser
 
 
@@ -42,6 +45,7 @@ def main() -> None:
         streaming=True,
         revision=resolved_revision,
     )
+    tokenizer = load_tokenizer(args.tokenizer)
     stats = export_coig_records(
         rows,
         args.output_dir,
@@ -53,6 +57,8 @@ def main() -> None:
         train_count=args.train_count,
         validation_count=args.validation_count,
         test_count=args.test_count,
+        tokenizer=tokenizer,
+        block_size=args.block_size,
     )
     print(
         json.dumps(

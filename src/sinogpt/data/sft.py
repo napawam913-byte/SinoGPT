@@ -63,6 +63,7 @@ class SFTExportStats:
     exported: int
     empty_turns: int
     malformed_turns: int
+    too_long: int
     duplicates: int
     train: int
     validation: int
@@ -96,6 +97,7 @@ def _validate_export_options(
     train_count: int,
     validation_count: int,
     test_count: int,
+    block_size: int | None,
 ) -> None:
     """在访问输入数据前锁定来源及精确三分切分约束。"""
     if not all(isinstance(value, str) and value.strip() for value in (source, revision, license_note, system_prompt)):
@@ -106,6 +108,8 @@ def _validate_export_options(
         raise ValueError("limit must be positive and split counts must be nonnegative")
     if train_count + validation_count + test_count != limit:
         raise ValueError("train_count, validation_count and test_count must sum to limit")
+    if block_size is not None and block_size < 1:
+        raise ValueError("block_size must be positive")
 
 
 def _split_for_position(position: int, train_count: int, validation_count: int) -> str:
@@ -141,6 +145,8 @@ def export_coig_records(
     validation_count: int,
     test_count: int,
     language: str = "zh",
+    tokenizer: Tokenizer | None = None,
+    block_size: int | None = None,
 ) -> SFTExportStats:
     """从 COIG 行流中提取唯一问答，并写入精确 4k/500/500 式清单。"""
     _validate_export_options(
@@ -152,13 +158,16 @@ def export_coig_records(
         train_count,
         validation_count,
         test_count,
+        block_size,
     )
     if not isinstance(language, str) or not language.strip():
         raise ValueError("language must not be empty")
+    if (tokenizer is None) != (block_size is None):
+        raise ValueError("tokenizer and block_size must be provided together")
 
     accepted: list[SFTRecord] = []
     seen_hashes: set[str] = set()
-    source_rows = turns = empty_turns = malformed_turns = duplicates = 0
+    source_rows = turns = empty_turns = malformed_turns = too_long = duplicates = 0
     for row in rows:
         if len(accepted) == limit:
             break
@@ -188,19 +197,21 @@ def export_coig_records(
                 continue
             seen_hashes.add(record_hash)
             split = _split_for_position(len(accepted), train_count, validation_count)
-            accepted.append(
-                SFTRecord(
-                    system=system_prompt,
-                    user=question,
-                    assistant=answer,
-                    source=source,
-                    revision=revision,
-                    license_note=license_note,
-                    language=language,
-                    split=split,
-                    record_hash=record_hash,
-                )
+            record = SFTRecord(
+                system=system_prompt,
+                user=question,
+                assistant=answer,
+                source=source,
+                revision=revision,
+                license_note=license_note,
+                language=language,
+                split=split,
+                record_hash=record_hash,
             )
+            if tokenizer is not None and len(_chat_token_ids(record, tokenizer)[0]) > block_size + 1:
+                too_long += 1
+                continue
+            accepted.append(record)
 
     if len(accepted) != limit:
         raise ValueError(f"only exported {len(accepted)} unique SFT records; requested {limit}")
@@ -211,6 +222,7 @@ def export_coig_records(
         exported=len(accepted),
         empty_turns=empty_turns,
         malformed_turns=malformed_turns,
+        too_long=too_long,
         duplicates=duplicates,
         train=train_count,
         validation=validation_count,

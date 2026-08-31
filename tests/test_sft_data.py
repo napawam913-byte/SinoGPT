@@ -172,3 +172,29 @@ def test_prepared_sft_split_round_trips_inputs_and_labels(tmp_path: Path) -> Non
 
     assert torch.equal(restored_inputs, inputs)
     assert torch.equal(restored_labels, labels)
+
+
+def test_export_coig_records_skips_samples_that_exceed_the_frozen_context(tmp_path: Path) -> None:
+    """导出阶段应依据预训练 tokenizer 过滤过长对话，而不是让后续准备阶段崩溃。"""
+    tokenizer = build_tokenizer(tmp_path)
+    rows = [
+        {"conversations": [{"question": "很长" * 200, "answer": "回答"}]},
+        {"conversations": [{"question": "问", "answer": "答"}]},
+    ]
+
+    stats = export_coig_records(
+        rows,
+        tmp_path,
+        source="BAAI/COIG",
+        revision="a" * 40,
+        license_note="COIG research pilot",
+        system_prompt="系",
+        limit=1,
+        train_count=1,
+        validation_count=0,
+        test_count=0,
+        tokenizer=tokenizer,
+        block_size=64,
+    )
+
+    assert (stats.exported, stats.too_long) == (1, 1)
