@@ -1,0 +1,20 @@
+model:
+  vocab_size: 50000
+  n_layer: 24
+  n_head: 16
+  n_embd: 1024
+  block_size: 1024
+data:
+  train_manifest: data/manifests/train.jsonl
+  valid_manifest: data/manifests/validation.jsonl
+  tokenizer_path: artifacts/tokenizer.json
+  cache_dir: data/cache
+train:
+  seed: 17
+  batch_size: 1
+  gradient_accumulation_steps: 32
+  learning_rate: 0.00015
+  max_steps: 1
+  checkpoint_every: 250
+  use_bf16: true
+  output_dir: artifacts/main_350m
