@@ -296,6 +296,13 @@ git add docs/tutorials/10-中文预训练先导实验.md README.md tests/test_cl
 git commit -m "docs: add chinese pretraining pilot guide"
 \`\`\`
 
+## Execution Status
+
+- Task 1 complete: chat control token contract is covered by tests and committed as `2002d9c`.
+- Task 2 complete: streaming manifest exporter is covered by network-free tests and committed as `45b019a`.
+- Task 3 complete: 30M pilot configurations are covered by config tests and committed as `10e42cf`.
+- Task 4 complete: cloud tutorial, README entry point, manifest ignore rule and tutorial contract test are verified in this worktree.
+
 ## Plan Self-Review
 
 | Design requirement | Plan task |

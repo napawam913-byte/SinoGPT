@@ -19,3 +19,12 @@ def test_train_help_requires_explicit_config_contract() -> None:
     assert result.returncode == 0
     assert "--config" in result.stdout
     assert "--resume" in result.stdout
+
+
+def test_pretraining_pilot_tutorial_lists_required_commands() -> None:
+    """真实中文预训练教程必须覆盖导出、编码、训练与恢复命令。"""
+    text = Path("docs/tutorials/10-中文预训练先导实验.md").read_text(encoding="utf-8")
+    assert "sinogpt.cli.export_hf_dataset" in text
+    assert "sinogpt.cli.train_tokenizer" in text
+    assert "sinogpt.cli.prepare_data" in text
+    assert "--resume" in text

@@ -16,6 +16,8 @@ python -m sinogpt.cli.sample --checkpoint artifacts/tiny_25m_demo/checkpoints/st
 
 该 demo 是完整训练与恢复链路验收，不是能力评测。云端 RTX 4090 训练请从 `docs/tutorials/01-云端环境.md`、`02-数据集与数据治理.md` 和 `07-从25M到350M训练.md` 开始。
 
+正式中文先导训练请阅读 `docs/tutorials/10-中文预训练先导实验.md`。它会生成独立的 `pilot_*.jsonl`、`artifacts/tiny_30m_pilot/` 和 `data/cache/tiny_30m_pilot/`，不影响本项目的 demo 验收产物。
+
 ## 教程与报告
 
 按 `docs/tutorials/00-项目总览.md` 至 `09-论文式报告.md` 顺序阅读；论文式报告模板在 `docs/paper/README.md`。正式 125M/350M 训练前，必须固定数据 revision、许可证记录、tokenizer/manifest 哈希、Git commit、目标 token 数和 checkpoint 归档位置。
