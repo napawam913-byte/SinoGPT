@@ -5,7 +5,15 @@ from pathlib import Path
 from tokenizers import Tokenizer, decoders, models, pre_tokenizers, trainers
 
 
-SPECIAL_TOKENS = ["<pad>", "<bos>", "<eos>", "<unk>"]
+SPECIAL_TOKENS = [
+    "<pad>",
+    "<bos>",
+    "<eos>",
+    "<unk>",
+    "<|system|>",
+    "<|user|>",
+    "<|assistant|>",
+]
 
 
 def train_bpe(texts: list[str], vocab_size: int, output_path: Path) -> None:
