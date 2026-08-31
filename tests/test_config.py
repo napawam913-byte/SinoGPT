@@ -1,5 +1,8 @@
 """模块用途：验证模型配置约束与随机种子可复现性。"""
 
+from pathlib import Path
+import tomllib
+
 import pytest
 import torch
 
@@ -28,3 +31,9 @@ def test_pilot_configs_share_model_and_data_but_extend_training() -> None:
     assert (stage_model, stage_data) == (full_model, full_data)
     assert (stage_train.max_steps, stage_train.checkpoint_every) == (100, 100)
     assert (full_train.max_steps, full_train.checkpoint_every) == (1250, 250)
+
+
+def test_data_extra_includes_zstandard_for_compressed_hf_shards() -> None:
+    """数据导出环境必须能读取 Hugging Face 的 .zst 压缩分片。"""
+    project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    assert "zstandard>=0.23" in project["project"]["optional-dependencies"]["data"]
