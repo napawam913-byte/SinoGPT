@@ -37,6 +37,20 @@ def test_coig_sft_export_help_requires_a_revision_and_license_note() -> None:
     assert "--test-count" in result.stdout
 
 
+def test_prepare_sft_data_help_requires_a_frozen_config() -> None:
+    """SFT 缓存命令必须以显式 YAML 配置连接数据与冻结 tokenizer。"""
+    environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
+    result = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.prepare_sft_data", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--config" in result.stdout
+
+
 def test_pretraining_pilot_tutorial_lists_required_commands() -> None:
     """真实中文预训练教程必须覆盖导出、编码、训练与恢复命令。"""
     text = Path("docs/tutorials/10-中文预训练先导实验.md").read_text(encoding="utf-8")

@@ -66,9 +66,70 @@ class TrainConfig:
             raise ValueError("max_steps and checkpoint_every must be positive")
 
 
+@dataclass(frozen=True)
+class SFTDataConfig:
+    """COIG SFT 三分清单、冻结 tokenizer 与缓存目录。"""
+
+    train_manifest: str
+    validation_manifest: str
+    test_manifest: str
+    tokenizer_path: str
+    cache_dir: str
+
+    def __post_init__(self) -> None:
+        if not all(
+            isinstance(value, str) and value.strip()
+            for value in (
+                self.train_manifest,
+                self.validation_manifest,
+                self.test_manifest,
+                self.tokenizer_path,
+                self.cache_dir,
+            )
+        ):
+            raise ValueError("all SFT data paths must be nonempty strings")
+
+
+@dataclass(frozen=True)
+class SFTTrainConfig:
+    """SFT 的优化、checkpoint 选择和预训练初始化参数。"""
+
+    seed: int
+    batch_size: int
+    gradient_accumulation_steps: int
+    learning_rate: float
+    max_epochs: int
+    checkpoint_every_epoch: int
+    use_bf16: bool
+    base_checkpoint: str
+    output_dir: str
+
+    def __post_init__(self) -> None:
+        if self.batch_size < 1 or self.gradient_accumulation_steps < 1:
+            raise ValueError("batch_size and gradient_accumulation_steps must be positive")
+        if self.learning_rate <= 0.0:
+            raise ValueError("learning_rate must be positive")
+        if self.max_epochs < 1:
+            raise ValueError("max_epochs must be positive")
+        if self.checkpoint_every_epoch != 1:
+            raise ValueError("COIG SFT pilot must validate and checkpoint every epoch")
+        if not isinstance(self.base_checkpoint, str) or not self.base_checkpoint.strip():
+            raise ValueError("base_checkpoint must be a nonempty string")
+        if not isinstance(self.output_dir, str) or not self.output_dir.strip():
+            raise ValueError("output_dir must be a nonempty string")
+
+
 def load_config(path: str | Path) -> tuple[ModelConfig, DataConfig, TrainConfig]:
     """从 YAML 文件加载三类已校验配置。"""
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("configuration root must be a mapping")
     return ModelConfig(**raw["model"]), DataConfig(**raw["data"]), TrainConfig(**raw["train"])
+
+
+def load_sft_config(path: str | Path) -> tuple[ModelConfig, SFTDataConfig, SFTTrainConfig]:
+    """从 YAML 加载 SFT 专属配置，避免误用预训练的二分数据配置。"""
+    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise ValueError("configuration root must be a mapping")
+    return ModelConfig(**raw["model"]), SFTDataConfig(**raw["data"]), SFTTrainConfig(**raw["train"])

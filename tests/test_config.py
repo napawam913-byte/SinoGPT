@@ -6,7 +6,7 @@ import tomllib
 import pytest
 import torch
 
-from sinogpt.config import ModelConfig, load_config
+from sinogpt.config import ModelConfig, load_config, load_sft_config
 from sinogpt.seed import seed_everything
 
 
@@ -37,3 +37,45 @@ def test_data_extra_includes_zstandard_for_compressed_hf_shards() -> None:
     """数据导出环境必须能读取 Hugging Face 的 .zst 压缩分片。"""
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     assert "zstandard>=0.23" in project["project"]["optional-dependencies"]["data"]
+
+
+def test_load_sft_config_requires_three_manifest_paths_and_a_base_checkpoint(tmp_path: Path) -> None:
+    """SFT 必须显式引用三份数据、冻结 tokenizer 和预训练初始化 checkpoint。"""
+    config_path = tmp_path / "sft.yaml"
+    config_path.write_text(
+        """
+model:
+  vocab_size: 32
+  n_layer: 1
+  n_head: 4
+  n_embd: 16
+  block_size: 8
+data:
+  train_manifest: train.jsonl
+  validation_manifest: validation.jsonl
+  test_manifest: test.jsonl
+  tokenizer_path: tokenizer.json
+  cache_dir: cache
+train:
+  seed: 17
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 0.00005
+  max_epochs: 3
+  checkpoint_every_epoch: 1
+  use_bf16: false
+  base_checkpoint: pretrain.pt
+  output_dir: artifacts/sft
+""".strip(),
+        encoding="utf-8",
+    )
+
+    model, data, train = load_sft_config(config_path)
+
+    assert model.block_size == 8
+    assert (data.train_manifest, data.validation_manifest, data.test_manifest) == (
+        "train.jsonl",
+        "validation.jsonl",
+        "test.jsonl",
+    )
+    assert (train.max_epochs, train.base_checkpoint) == (3, "pretrain.pt")

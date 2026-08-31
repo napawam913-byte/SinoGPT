@@ -6,6 +6,10 @@ from hashlib import sha256
 import json
 from pathlib import Path
 
+import torch
+from torch import Tensor
+from tokenizers import Tokenizer
+
 
 DEFAULT_SYSTEM_PROMPT = "你是一个简洁、诚实的中文助手。"
 SPLITS = ("train", "validation", "test")
@@ -232,3 +236,93 @@ def load_sft_records(path: Path) -> list[SFTRecord]:
     if len(hashes) != len(set(hashes)):
         raise ValueError("duplicate record_hash in SFT manifest")
     return records
+
+
+def _token_id(tokenizer: Tokenizer, token: str) -> int:
+    """读取必需的控制 token ID，拒绝后续 SFT 改动词表。"""
+    token_id = tokenizer.token_to_id(token)
+    if token_id is None:
+        raise ValueError(f"tokenizer must contain {token}")
+    return token_id
+
+
+def _chat_token_ids(record: SFTRecord, tokenizer: Tokenizer) -> tuple[list[int], int]:
+    """按项目固定模板编码完整对话，并返回 assistant 标记的下标。"""
+    assistant_id = _token_id(tokenizer, "<|assistant|>")
+    for token in ("<pad>", "<eos>", "<|system|>", "<|user|>"):
+        _token_id(tokenizer, token)
+    text = (
+        f"<|system|>{record.system}<eos>"
+        f"<|user|>{record.user}<eos>"
+        f"<|assistant|>{record.assistant}<eos>"
+    )
+    token_ids = tokenizer.encode(text).ids
+    try:
+        return token_ids, token_ids.index(assistant_id)
+    except ValueError as error:
+        raise ValueError("encoded SFT record is missing <|assistant|>") from error
+
+
+def encode_sft_record(record: SFTRecord, tokenizer: Tokenizer, block_size: int) -> tuple[Tensor, Tensor]:
+    """构造定长 input/label；仅 assistant 正文和 EOS 保留标签。"""
+    if block_size < 1:
+        raise ValueError("block_size must be positive")
+    token_ids, assistant_index = _chat_token_ids(record, tokenizer)
+    if len(token_ids) < 2 or len(token_ids) > block_size + 1:
+        raise ValueError("SFT record does not fit block_size")
+    pad_id = _token_id(tokenizer, "<pad>")
+    input_ids = torch.full((block_size,), pad_id, dtype=torch.long)
+    labels = torch.full((block_size,), -100, dtype=torch.long)
+    input_length = len(token_ids) - 1
+    input_ids[:input_length] = torch.tensor(token_ids[:-1], dtype=torch.long)
+    targets = torch.tensor(token_ids[1:], dtype=torch.long)
+    labels[assistant_index:input_length] = targets[assistant_index:]
+    if not bool((labels != -100).any()):
+        raise ValueError("SFT record has no assistant supervision tokens")
+    return input_ids, labels
+
+
+def prepare_sft_records(
+    records: list[SFTRecord], tokenizer: Tokenizer, block_size: int
+) -> tuple[Tensor, Tensor]:
+    """逐条编码 SFT 记录，不跨对话拼接或重排 token。"""
+    if not records:
+        raise ValueError("SFT records must not be empty")
+    pairs = [encode_sft_record(record, tokenizer, block_size) for record in records]
+    return torch.stack([pair[0] for pair in pairs]), torch.stack([pair[1] for pair in pairs])
+
+
+def _validate_prepared_sft_tensors(input_ids: Tensor, labels: Tensor, block_size: int) -> None:
+    """验证磁盘缓存仍保持同形状、整型和至少一个监督 token。"""
+    if input_ids.ndim != 2 or labels.ndim != 2 or input_ids.shape != labels.shape:
+        raise ValueError("prepared SFT inputs and labels must be equal rank-2 tensors")
+    if input_ids.size(0) < 1 or input_ids.size(1) != block_size:
+        raise ValueError("prepared SFT tensors do not match block_size")
+    if input_ids.dtype != torch.long or labels.dtype != torch.long:
+        raise ValueError("prepared SFT tensors must use torch.long")
+    if not bool((labels != -100).any()):
+        raise ValueError("prepared SFT labels have no supervised tokens")
+
+
+def save_prepared_sft_split(input_ids: Tensor, labels: Tensor, cache_dir: Path, split: str) -> None:
+    """保存一个 split 的输入及标签张量，文件名保持可读且明确。"""
+    if split not in SPLITS:
+        raise ValueError("split must be train, validation or test")
+    _validate_prepared_sft_tensors(input_ids, labels, input_ids.size(1))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    torch.save(input_ids, cache_dir / f"{split}_input_ids.pt")
+    torch.save(labels, cache_dir / f"{split}_labels.pt")
+
+
+def load_prepared_sft_split(cache_dir: Path, split: str, block_size: int) -> tuple[Tensor, Tensor]:
+    """加载一个缓存 split，并在使用前再次验证其形状和标签掩码。"""
+    if split not in SPLITS:
+        raise ValueError("split must be train, validation or test")
+    input_ids = torch.load(cache_dir / f"{split}_input_ids.pt", map_location="cpu", weights_only=True)
+    labels = torch.load(cache_dir / f"{split}_labels.pt", map_location="cpu", weights_only=True)
+    if not isinstance(input_ids, Tensor) or not isinstance(labels, Tensor):
+        raise ValueError("prepared SFT cache must contain tensors")
+    input_ids = input_ids.long()
+    labels = labels.long()
+    _validate_prepared_sft_tensors(input_ids, labels, block_size)
+    return input_ids, labels
