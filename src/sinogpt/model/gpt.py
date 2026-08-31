@@ -1,5 +1,7 @@
 """模块用途：组合嵌入、Pre-LN Transformer Block 与语言模型输出头。"""
 
+import math
+
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -37,7 +39,22 @@ class GPTLanguageModel(nn.Module):
         )
         self.final_norm = nn.LayerNorm(config.n_embd)
         self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
+        self.apply(self._initialize_module_weights)
+        residual_std = 0.02 / math.sqrt(2 * config.n_layer)
+        for block in self.blocks:
+            nn.init.normal_(block.attn.proj.weight, mean=0.0, std=residual_std)
+            nn.init.normal_(block.mlp.down.weight, mean=0.0, std=residual_std)
         self.lm_head.weight = self.token_embedding.weight
+
+    @staticmethod
+    def _initialize_module_weights(module: nn.Module) -> None:
+        """使用 GPT 预训练的小尺度正态分布初始化线性层和嵌入层。"""
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, input_ids: Tensor, targets: Tensor | None = None) -> tuple[Tensor, Tensor | None]:
         """返回 [B, T, V] logits 和可选的下一 token 交叉熵损失。"""

@@ -35,3 +35,13 @@ def test_backward_populates_finite_gelu_gradient() -> None:
     loss.backward()
     gradient = model.blocks[0].mlp.up.weight.grad
     assert gradient is not None and torch.isfinite(gradient).all()
+
+
+def test_gpt_uses_small_scale_pretraining_initialization() -> None:
+    """词表投影与变换层必须使用 GPT 预训练所需的小尺度初始权重。"""
+    torch.manual_seed(17)
+    model = build_model()
+    assert 0.015 < model.token_embedding.weight.std().item() < 0.025
+    assert 0.015 < model.blocks[0].attn.qkv.weight.std().item() < 0.025
+    assert model.blocks[0].attn.proj.weight.std().item() < 0.015
+    assert model.blocks[0].mlp.down.weight.std().item() < 0.015
