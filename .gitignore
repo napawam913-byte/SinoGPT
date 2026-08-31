@@ -12,3 +12,6 @@ data/shards/
 
 # 本地可视化头脑风暴会话
 .superpowers/
+
+# 本地隔离开发目录
+.worktrees/
