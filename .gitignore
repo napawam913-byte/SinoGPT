@@ -1,0 +1,12 @@
+# Python 测试与解释器缓存
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# 训练过程的可再生或大体积产物
+artifacts/
+data/cache/
+data/shards/
+
+# 本地可视化头脑风暴会话
+.superpowers/
