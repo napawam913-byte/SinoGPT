@@ -82,6 +82,35 @@ def test_train_sft_help_requires_config_and_exposes_resume() -> None:
     assert "--resume" in result.stdout
 
 
+def test_sample_chat_help_requires_checkpoint_and_question() -> None:
+    """聊天采样须显式选择 checkpoint 和用户问题，避免误用随机模型。"""
+    environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
+    result = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.sample_chat", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--checkpoint" in result.stdout
+    assert "--question" in result.stdout
+    assert "--top-k" in result.stdout
+
+
+def test_coig_sft_tutorial_lists_export_prepare_train_and_test_evaluation() -> None:
+    """云端教程必须覆盖公开数据导出、标签缓存、训练、测试与聊天采样。"""
+    text = Path("docs/tutorials/11-COIG监督微调.md").read_text(encoding="utf-8")
+    for command in (
+        "sinogpt.cli.export_hf_sft_dataset",
+        "sinogpt.cli.prepare_sft_data",
+        "sinogpt.cli.train_sft",
+        "sinogpt.cli.evaluate_sft",
+        "sinogpt.cli.sample_chat",
+    ):
+        assert command in text
+
+
 def test_pretraining_pilot_tutorial_lists_required_commands() -> None:
     """真实中文预训练教程必须覆盖导出、编码、训练与恢复命令。"""
     text = Path("docs/tutorials/10-中文预训练先导实验.md").read_text(encoding="utf-8")
