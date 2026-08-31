@@ -10,6 +10,7 @@ artifacts/
 data/cache/
 data/shards/
 data/manifests/pilot_*.jsonl
+data/manifests/coig_sft_*.jsonl
 
 # 本地可视化头脑风暴会话
 .superpowers/
