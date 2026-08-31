@@ -18,3 +18,7 @@ train:
   checkpoint_every: 250
   use_bf16: true
   output_dir: artifacts/main_350m
+experiment:
+  run_name: sino_main_350m
+  target_tokens: 1000000000
+  launch_gate: docs/experiments/run-manifest-template.json

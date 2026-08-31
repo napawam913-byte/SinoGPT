@@ -18,3 +18,7 @@ train:
   checkpoint_every: 250
   use_bf16: true
   output_dir: artifacts/ablation_125m
+experiment:
+  allowed_run_names: [zh_70_en_20_code_10, zh_100, en_100]
+  target_tokens: 300000000
+  launch_gate: docs/experiments/run-manifest-template.json

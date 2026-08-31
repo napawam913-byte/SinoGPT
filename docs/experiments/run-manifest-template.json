@@ -1,0 +1,9 @@
+{
+  "run_name": "zh_70_en_20_code_10",
+  "config_path": "configs/ablation_125m.yaml",
+  "tokenizer_sha256": "replace-with-64-lowercase-hex-characters-before-launching-the-run",
+  "dataset_manifest_sha256": "replace-with-64-lowercase-hex-characters-before-launching-the-run",
+  "seed": 17,
+  "target_tokens": 300000000,
+  "checkpoint_uri": "s3://your-approved-archive/sinogpt/zh_70_en_20_code_10/"
+}
