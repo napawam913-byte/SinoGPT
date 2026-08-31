@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pytest-tmp/
+*.egg-info/
 
 # 训练过程的可再生或大体积产物
 artifacts/
