@@ -1,0 +1,1 @@
+{"text":"验证文本同样由项目作者编写。它只用于确认分词和数据准备可以处理 validation 切分，不参与本地二十步训练的能力评估。", "source":"sinogpt-demo-authored", "revision":"2026-08-31", "license_note":"CC0-1.0; text authored for repository acceptance test", "language":"zh", "split":"validation", "document_hash":"87e908e22631dc4c48b2421f6633eec340bfc5fece89708ccf1b79da03c9b7d5"}

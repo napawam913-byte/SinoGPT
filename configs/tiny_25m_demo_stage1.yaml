@@ -1,0 +1,20 @@
+model:
+  vocab_size: 50000
+  n_layer: 6
+  n_head: 6
+  n_embd: 384
+  block_size: 16
+data:
+  train_manifest: data/manifests/demo_train.jsonl
+  valid_manifest: data/manifests/demo_validation.jsonl
+  tokenizer_path: artifacts/tiny_25m_demo/tokenizer.json
+  cache_dir: data/cache/demo_tiny_25m
+train:
+  seed: 17
+  batch_size: 1
+  gradient_accumulation_steps: 1
+  learning_rate: 0.0003
+  max_steps: 10
+  checkpoint_every: 10
+  use_bf16: false
+  output_dir: artifacts/tiny_25m_demo
