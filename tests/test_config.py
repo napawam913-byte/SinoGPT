@@ -33,6 +33,16 @@ def test_pilot_configs_share_model_and_data_but_extend_training() -> None:
     assert (full_train.max_steps, full_train.checkpoint_every) == (1250, 250)
 
 
+def test_full_pass_config_continues_the_pilot_to_one_dataset_coverage() -> None:
+    """完整覆盖运行必须保留同一模型与数据，并把总步数固定为 4,782。"""
+    pilot_model, pilot_data, pilot_train = load_config("configs/tiny_30m_pilot.yaml")
+    full_model, full_data, full_train = load_config("configs/tiny_30m_pilot_fullpass.yaml")
+
+    assert (full_model, full_data) == (pilot_model, pilot_data)
+    assert (full_train.max_steps, full_train.checkpoint_every) == (4782, 250)
+    assert full_train.max_steps > pilot_train.max_steps
+
+
 def test_data_extra_includes_zstandard_for_compressed_hf_shards() -> None:
     """数据导出环境必须能读取 Hugging Face 的 .zst 压缩分片。"""
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
