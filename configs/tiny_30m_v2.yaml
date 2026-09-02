@@ -1,0 +1,22 @@
+# 模块用途：定义独立的 30M 中文预训练 v2 运行；只引用 v2 数据与产物，避免覆盖 Pilot。
+# 模块边界：只声明模型、数据和优化参数；数据导出与训练命令由对应 CLI 执行。
+model:
+  vocab_size: 50000
+  n_layer: 6
+  n_head: 6
+  n_embd: 384
+  block_size: 512
+data:
+  train_manifest: data/manifests/v2_train.jsonl
+  valid_manifest: data/manifests/v2_validation.jsonl
+  tokenizer_path: artifacts/tiny_30m_v2/tokenizer.json
+  cache_dir: data/cache/tiny_30m_v2
+train:
+  seed: 17
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0003
+  max_steps: 40000
+  checkpoint_every: 2000
+  use_bf16: true
+  output_dir: artifacts/tiny_30m_v2

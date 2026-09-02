@@ -43,6 +43,21 @@ def test_full_pass_config_continues_the_pilot_to_one_dataset_coverage() -> None:
     assert full_train.max_steps > pilot_train.max_steps
 
 
+def test_v2_config_uses_isolated_artifacts_and_a_655m_token_budget() -> None:
+    """v2 必须保留 30M 架构，同时避免复用 Pilot 的数据与输出目录。"""
+    pilot_model, _, _ = load_config("configs/tiny_30m_pilot.yaml")
+    model, data, train = load_config("configs/tiny_30m_v2.yaml")
+
+    assert model == pilot_model
+    assert "v2" in data.train_manifest
+    assert "v2" in data.valid_manifest
+    assert "v2" in data.tokenizer_path
+    assert "v2" in data.cache_dir
+    assert "v2" in train.output_dir
+    assert (train.max_steps, train.checkpoint_every) == (40_000, 2_000)
+    assert train.max_steps * train.batch_size * train.gradient_accumulation_steps * model.block_size == 655_360_000
+
+
 def test_data_extra_includes_zstandard_for_compressed_hf_shards() -> None:
     """数据导出环境必须能读取 Hugging Face 的 .zst 压缩分片。"""
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
