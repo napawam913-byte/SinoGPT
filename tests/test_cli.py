@@ -96,6 +96,23 @@ def test_evaluate_sft_help_requires_checkpoint_config_and_split() -> None:
     assert "--split" in result.stdout
 
 
+def test_evaluate_pretrain_help_requires_checkpoint_config_and_validation_cache() -> None:
+    """预训练验证必须显式绑定 checkpoint、配置与已准备好的缓存目录。"""
+    environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
+    result = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.evaluate_pretrain", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--checkpoint" in result.stdout
+    assert "--config" in result.stdout
+    assert "--cache-dir" in result.stdout
+    assert "--split" in result.stdout
+
+
 def test_train_sft_help_requires_config_and_exposes_resume() -> None:
     """SFT 训练须显式指定配置，并允许从 epoch checkpoint 继续。"""
     environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
