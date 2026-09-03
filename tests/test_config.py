@@ -58,6 +58,21 @@ def test_v2_config_uses_isolated_artifacts_and_a_655m_token_budget() -> None:
     assert train.max_steps * train.batch_size * train.gradient_accumulation_steps * model.block_size == 655_360_000
 
 
+def test_v2_sft_config_uses_v2_tokenizer_base_and_isolated_outputs() -> None:
+    """v2 SFT 不能误接 Pilot tokenizer、Pilot checkpoint 或旧 COIG 缓存。"""
+    v2_model, _, _ = load_config("configs/tiny_30m_v2.yaml")
+    model, data, train = load_sft_config("configs/tiny_30m_v2_coig_sft.yaml")
+
+    assert model == v2_model
+    assert "v2_coig_sft" in data.train_manifest
+    assert "v2_coig_sft" in data.validation_manifest
+    assert "v2_coig_sft" in data.test_manifest
+    assert data.tokenizer_path == "artifacts/tiny_30m_v2/tokenizer.json"
+    assert data.cache_dir == "data/cache/tiny_30m_v2_coig_sft"
+    assert train.base_checkpoint == "artifacts/tiny_30m_v2/checkpoints/step_38191.pt"
+    assert train.output_dir == "artifacts/tiny_30m_v2_coig_sft"
+
+
 def test_data_extra_includes_zstandard_for_compressed_hf_shards() -> None:
     """数据导出环境必须能读取 Hugging Face 的 .zst 压缩分片。"""
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))

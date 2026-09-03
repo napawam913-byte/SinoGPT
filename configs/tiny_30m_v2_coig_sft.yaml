@@ -1,0 +1,24 @@
+# 模块用途：定义基于 v2 预训练底座的 COIG 中文监督微调运行，隔离旧 Pilot 实验。
+# 模块边界：只声明 v2 SFT 的模型、数据和优化参数；不导出数据、不执行训练。
+model:
+  vocab_size: 50000
+  n_layer: 6
+  n_head: 6
+  n_embd: 384
+  block_size: 512
+data:
+  train_manifest: data/manifests/v2_coig_sft/coig_sft_train.jsonl
+  validation_manifest: data/manifests/v2_coig_sft/coig_sft_validation.jsonl
+  test_manifest: data/manifests/v2_coig_sft/coig_sft_test.jsonl
+  tokenizer_path: artifacts/tiny_30m_v2/tokenizer.json
+  cache_dir: data/cache/tiny_30m_v2_coig_sft
+train:
+  seed: 17
+  batch_size: 4
+  gradient_accumulation_steps: 8
+  learning_rate: 0.00005
+  max_epochs: 3
+  checkpoint_every_epoch: 1
+  use_bf16: true
+  base_checkpoint: artifacts/tiny_30m_v2/checkpoints/step_38191.pt
+  output_dir: artifacts/tiny_30m_v2_coig_sft
