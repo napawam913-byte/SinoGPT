@@ -24,6 +24,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, default=17, help="采样随机种子")
     parser.add_argument("--temperature", type=float, default=0.7, help="采样温度")
     parser.add_argument("--top-k", type=int, default=40, help="top-k；0 表示不截断")
+    parser.add_argument("--top-p", type=float, default=0.9, help="nucleus 采样累计概率阈值")
+    parser.add_argument("--repetition-penalty", type=float, default=1.1, help="已生成 token 的重复惩罚；1 表示关闭")
     parser.add_argument("--device", choices=("auto", "cuda", "cpu"), default="auto")
     return parser
 
@@ -71,6 +73,8 @@ def main() -> None:
         max_new_tokens=args.tokens,
         temperature=args.temperature,
         top_k=args.top_k,
+        top_p=args.top_p,
+        repetition_penalty=args.repetition_penalty,
     )
     if generated and generated[-1] == eos_id:
         generated.pop()

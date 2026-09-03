@@ -5,7 +5,12 @@ from types import SimpleNamespace
 import torch
 from torch import Tensor, nn
 
-from sinogpt.inference import build_chat_prompt, generate_assistant_ids
+import sinogpt.inference as inference
+from sinogpt.inference import (
+    build_chat_prompt,
+    generate_assistant_ids,
+    sample_next_token,
+)
 from sinogpt.tokenizer import load_tokenizer, train_bpe
 
 
@@ -52,3 +57,28 @@ def test_generate_assistant_ids_stops_when_eos_is_sampled() -> None:
     )
 
     assert generated == [2]
+
+
+def test_apply_repetition_penalty_reduces_seen_positive_and_negative_logits() -> None:
+    """已生成 token 的正负 logits 应按标准重复惩罚方向调整。"""
+    adjusted = inference.apply_repetition_penalty(
+        torch.tensor([2.0, -2.0, 1.0]),
+        generated_ids=[0, 1, 1],
+        repetition_penalty=2.0,
+    )
+
+    assert torch.equal(adjusted, torch.tensor([1.0, -4.0, 1.0]))
+
+
+def test_sample_next_token_top_p_excludes_lower_probability_tokens() -> None:
+    """top-p 只保留累计概率覆盖阈值所需的最高概率候选。"""
+    torch.manual_seed(17)
+
+    next_id = sample_next_token(
+        torch.tensor([3.0, 1.0, 0.0]),
+        temperature=1.0,
+        top_k=0,
+        top_p=0.5,
+    )
+
+    assert next_id == 0

@@ -142,6 +142,24 @@ def test_sample_chat_help_requires_checkpoint_and_question() -> None:
     assert "--checkpoint" in result.stdout
     assert "--question" in result.stdout
     assert "--top-k" in result.stdout
+    assert "--top-p" in result.stdout
+    assert "--repetition-penalty" in result.stdout
+
+
+def test_sample_help_exposes_controlled_decoding_parameters() -> None:
+    """原始续写命令也必须公开 top-k、top-p 与重复惩罚参数。"""
+    environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
+    result = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.sample", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "--top-k" in result.stdout
+    assert "--top-p" in result.stdout
+    assert "--repetition-penalty" in result.stdout
 
 
 def test_coig_sft_tutorial_lists_export_prepare_train_and_test_evaluation() -> None:
