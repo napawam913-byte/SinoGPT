@@ -19,6 +19,35 @@ def test_train_help_requires_explicit_config_contract() -> None:
     assert result.returncode == 0
     assert "--config" in result.stdout
     assert "--resume" in result.stdout
+    assert "--train-manifest" in result.stdout
+    assert "--cache-dir" in result.stdout
+    assert "--additional-steps" in result.stdout
+    assert "--reset-data-cursor" in result.stdout
+
+
+def test_shard_and_prepare_help_expose_low_storage_pretraining_controls() -> None:
+    """数据分片与预处理命令必须公开分片和缓存隔离参数。"""
+    environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
+    shard = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.materialize_manifest_shard", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    prepared = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.prepare_data", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    assert shard.returncode == 0
+    assert "--shard-count" in shard.stdout
+    assert "--shard-index" in shard.stdout
+    assert prepared.returncode == 0
+    assert "--train-manifest" in prepared.stdout
+    assert "--cache-dir" in prepared.stdout
 
 
 def test_coig_sft_export_help_requires_a_revision_and_license_note() -> None:

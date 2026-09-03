@@ -1,6 +1,7 @@
 """模块用途：将 manifest 中的审计文本转换为本地可训练的 token 序列缓存。"""
 
 import argparse
+from dataclasses import replace
 from pathlib import Path
 
 import torch
@@ -12,9 +13,11 @@ from sinogpt.tokenizer import load_tokenizer
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """构建显式要求配置文件的命令行参数解析器。"""
+    """构建配置驱动、可为当前数据分片覆盖输入和缓存的命令行参数。"""
     parser = argparse.ArgumentParser(description="把已审计 manifest 打包为因果训练序列")
     parser.add_argument("--config", required=True, type=Path, help="YAML 训练配置路径")
+    parser.add_argument("--train-manifest", type=Path, help="仅本次使用的 train manifest 分片")
+    parser.add_argument("--cache-dir", type=Path, help="仅本次使用的 token 缓存目录")
     return parser
 
 
@@ -40,6 +43,11 @@ def main() -> None:
     """读取配置并构建 train/validation 两个可恢复数据缓存。"""
     args = build_parser().parse_args()
     model_config, data_config, _ = load_config(args.config)
+    data_config = replace(
+        data_config,
+        train_manifest=str(args.train_manifest or data_config.train_manifest),
+        cache_dir=str(args.cache_dir or data_config.cache_dir),
+    )
     cache_dir = Path(data_config.cache_dir)
     train_count = prepare_split(
         Path(data_config.train_manifest),

@@ -1,7 +1,7 @@
 """模块用途：编排可恢复的 GPT 因果语言模型训练，不实现网络数学。"""
 
 import argparse
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 from pathlib import Path
 import random
@@ -19,10 +19,18 @@ from sinogpt.training.trainer import Trainer
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """构造训练 CLI；配置路径始终显式，恢复操作必须显式选择 checkpoint。"""
+    """构造训练 CLI；可在不改 YAML 时安全切换至一个准备好的数据分片。"""
     parser = argparse.ArgumentParser(description="训练从零实现的 SinoGPT 因果语言模型")
     parser.add_argument("--config", required=True, type=Path, help="YAML 训练配置路径")
     parser.add_argument("--resume", type=Path, help="从指定 checkpoint 恢复训练")
+    parser.add_argument("--train-manifest", type=Path, help="仅本次使用的 train manifest 分片")
+    parser.add_argument("--cache-dir", type=Path, help="仅本次读取的预处理缓存目录")
+    parser.add_argument("--additional-steps", type=int, help="在恢复步数之后额外执行多少个优化器更新")
+    parser.add_argument(
+        "--reset-data-cursor",
+        action="store_true",
+        help="切换到新数据分片时从该分片开头读取；模型和优化器状态仍从 checkpoint 恢复",
+    )
     parser.add_argument(
         "--device",
         choices=("auto", "cuda", "cpu"),
@@ -128,6 +136,11 @@ def main() -> None:
     """执行训练，并在固定间隔和最终步写入可恢复 checkpoint。"""
     args = build_parser().parse_args()
     model_config, data_config, train_config = load_config(args.config)
+    data_config = replace(
+        data_config,
+        train_manifest=str(args.train_manifest or data_config.train_manifest),
+        cache_dir=str(args.cache_dir or data_config.cache_dir),
+    )
     device = resolve_device(args.device)
     require_bf16_support(train_config.use_bf16, device)
     print("frozen_config:")
@@ -148,6 +161,16 @@ def main() -> None:
     if args.resume is not None:
         global_step, cursor, tokens_seen = restore_training_state(args.resume, model, trainer, model_config)
         print(f"resumed_from={args.resume} global_step={global_step}")
+    if args.reset_data_cursor:
+        cursor = 0
+        print("data_cursor_reset=true")
+    if args.additional_steps is not None and args.additional_steps < 1:
+        raise ValueError("additional_steps must be positive")
+    target_step = global_step + args.additional_steps if args.additional_steps is not None else train_config.max_steps
+    if target_step <= global_step:
+        raise ValueError("target step must exceed the restored global_step")
+    effective_train_config = replace(train_config, max_steps=target_step)
+    print(f"target_global_step={target_step}")
 
     output_dir = Path(train_config.output_dir)
     checkpoints_dir = output_dir / "checkpoints"
@@ -159,7 +182,7 @@ def main() -> None:
     if device.type == "cuda":
         torch.cuda.reset_peak_memory_stats(device)
 
-    for step in range(global_step + 1, train_config.max_steps + 1):
+    for step in range(global_step + 1, target_step + 1):
         batch, cursor = next_batch(sequences, cursor, batch_size)
         started_at = time.perf_counter()
         metrics = trainer.train_step(batch[:, :-1], batch[:, 1:])
@@ -177,13 +200,13 @@ def main() -> None:
         with metrics_path.open("a", encoding="utf-8") as metrics_file:
             metrics_file.write(json.dumps(record) + "\n")
         print(json.dumps(record))
-        if step % train_config.checkpoint_every == 0 or step == train_config.max_steps:
+        if step % train_config.checkpoint_every == 0 or step == target_step:
             state = checkpoint_state(
                 model,
                 trainer,
                 model_config,
                 data_config,
-                train_config,
+                effective_train_config,
                 step,
                 cursor,
                 tokens_seen,
