@@ -24,7 +24,7 @@ class EosModel(nn.Module):
         self.config = SimpleNamespace(block_size=8)
 
     def forward(self, input_ids: Tensor) -> tuple[Tensor, None]:
-        logits = torch.tensor([0.0, 0.0, 4.0], device=input_ids.device)
+        logits = torch.tensor([float("-inf"), float("-inf"), 0.0], device=input_ids.device)
         return logits.expand(*input_ids.shape, 3) + self.anchor, None
 
 
