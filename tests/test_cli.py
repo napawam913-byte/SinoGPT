@@ -146,6 +146,27 @@ def test_sample_chat_help_requires_checkpoint_and_question() -> None:
     assert "--repetition-penalty" in result.stdout
 
 
+def test_gradio_chat_help_exposes_dual_checkpoint_and_server_controls() -> None:
+    """Gradio 演示帮助必须不依赖 Gradio 安装即可显示启动参数。"""
+    environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
+    result = subprocess.run(
+        [sys.executable, "-m", "sinogpt.cli.gradio_chat", "--help"],
+        capture_output=True,
+        check=False,
+        env=environment,
+        text=True,
+    )
+    assert result.returncode == 0
+    for option in (
+        "--pretrain-checkpoint",
+        "--sft-checkpoint",
+        "--host",
+        "--port",
+        "--device",
+    ):
+        assert option in result.stdout
+
+
 def test_sample_help_exposes_controlled_decoding_parameters() -> None:
     """原始续写命令也必须公开 top-k、top-p 与重复惩罚参数。"""
     environment = {**os.environ, "PYTHONPATH": str(Path("src").resolve())}
