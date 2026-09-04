@@ -2,6 +2,7 @@
 
 from types import SimpleNamespace
 
+import pytest
 import torch
 from torch import Tensor, nn
 
@@ -43,6 +44,30 @@ def test_build_chat_prompt_places_assistant_marker_last(tmp_path) -> None:
     assert prompt_ids[-1] == tokenizer.token_to_id("<|assistant|>")
     assert tokenizer.token_to_id("<|system|>") in prompt_ids
     assert tokenizer.token_to_id("<|user|>") in prompt_ids
+
+
+def test_build_chat_prompt_includes_history_before_current_question(tmp_path) -> None:
+    tokenizer = build_tokenizer(tmp_path)
+
+    prompt_ids = build_chat_prompt(
+        "系统",
+        "新问题",
+        tokenizer,
+        history=[("旧问题", "旧回答")],
+    )
+
+    expected = tokenizer.encode(
+        "<|system|>系统<eos><|user|>旧问题<eos><|assistant|>旧回答<eos>"
+        "<|user|>新问题<eos><|assistant|>"
+    ).ids
+    assert prompt_ids == expected
+
+
+def test_build_chat_prompt_rejects_empty_history_turn(tmp_path) -> None:
+    tokenizer = build_tokenizer(tmp_path)
+
+    with pytest.raises(ValueError, match="history turns must not be empty"):
+        build_chat_prompt("系统", "问题", tokenizer, history=[(" ", "回答")])
 
 
 def test_generate_assistant_ids_stops_when_eos_is_sampled() -> None:

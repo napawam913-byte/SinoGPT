@@ -5,7 +5,12 @@ from torch import Tensor, nn
 from tokenizers import Tokenizer
 
 
-def build_chat_prompt(system: str, question: str, tokenizer: Tokenizer) -> list[int]:
+def build_chat_prompt(
+    system: str,
+    question: str,
+    tokenizer: Tokenizer,
+    history: list[tuple[str, str]] | None = None,
+) -> list[int]:
     """将系统提示与用户问题编码，并让 assistant 控制 token 成为最后一个输入。"""
     if not isinstance(system, str) or not system.strip():
         raise ValueError("system must not be empty")
@@ -14,8 +19,16 @@ def build_chat_prompt(system: str, question: str, tokenizer: Tokenizer) -> list[
     for token in ("<eos>", "<|system|>", "<|user|>", "<|assistant|>"):
         if tokenizer.token_to_id(token) is None:
             raise ValueError(f"tokenizer must contain {token}")
+    if history is not None:
+        for history_question, history_answer in history:
+            if not history_question.strip() or not history_answer.strip():
+                raise ValueError("history turns must not be empty")
+    history_prompt = "" if history is None else "".join(
+        f"<|user|>{history_question}<eos><|assistant|>{history_answer}<eos>"
+        for history_question, history_answer in history
+    )
     return tokenizer.encode(
-        f"<|system|>{system}<eos><|user|>{question}<eos><|assistant|>"
+        f"<|system|>{system}<eos>{history_prompt}<|user|>{question}<eos><|assistant|>"
     ).ids
 
 
