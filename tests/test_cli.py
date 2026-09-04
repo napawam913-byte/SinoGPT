@@ -242,5 +242,9 @@ def test_gradio_dual_model_tutorial_has_recording_contract() -> None:
         "不使用 `share=True`",
         "git pull --ff-only origin master",
         "公开隧道地址",
+        "EOS 空答后继续提问",
+        "提交后立即切换模型",
+        "旧回答不应重新出现",
+        "点击发送与 Enter",
     ):
         assert required in text
