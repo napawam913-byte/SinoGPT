@@ -203,3 +203,18 @@ def test_pretraining_pilot_tutorial_lists_required_commands() -> None:
     assert "sinogpt.cli.train_tokenizer" in text
     assert "sinogpt.cli.prepare_data" in text
     assert "--resume" in text
+
+
+def test_gradio_dual_model_tutorial_has_recording_contract() -> None:
+    """双模型 Gradio 教程必须包含可复现命令和实验边界。"""
+    text = Path("docs/tutorials/13-Gradio双模型对话演示与视频录制.md").read_text(encoding="utf-8")
+    for required in (
+        "sinogpt.cli.gradio_chat",
+        "--pretrain-checkpoint",
+        "--sft-checkpoint",
+        'python -m pip install -e ".[demo]"',
+        "v2 预训练",
+        "v2 SFT",
+        "不可作为事实依据",
+    ):
+        assert required in text
