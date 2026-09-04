@@ -132,7 +132,13 @@ class DualModelChatService:
         model_state = state.get("model")
         if not isinstance(model_config_raw, Mapping) or not isinstance(model_state, Mapping):
             raise ValueError("checkpoint model_config and model must be mappings")
-        data_config = state.get("sft_data_config", state.get("data_config"))
+        sft_data_config = state.get("sft_data_config")
+        data_config = (
+            sft_data_config
+            if isinstance(sft_data_config, Mapping)
+            and isinstance(sft_data_config.get("tokenizer_path"), str)
+            else state.get("data_config")
+        )
         if not isinstance(data_config, Mapping) or not isinstance(
             data_config.get("tokenizer_path"), str
         ):

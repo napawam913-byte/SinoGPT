@@ -1,5 +1,6 @@
 """模块用途：验证无界面双模型聊天服务的公共行为与边界。"""
 
+from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,7 +14,10 @@ from sinogpt.demo.chat_service import (
     ModelBundle,
     SamplingSettings,
 )
+from sinogpt.config import ModelConfig
+from sinogpt.model.gpt import GPTLanguageModel
 from sinogpt.tokenizer import load_tokenizer, train_bpe
+from sinogpt.training.checkpoint import save_checkpoint
 
 
 class EosModel(nn.Module):
@@ -80,3 +84,33 @@ def test_respond_restores_model_training_mode(tmp_path) -> None:
     service.respond("v2 SFT（聊天候选）", "你好", [], SamplingSettings())
 
     assert model.training is True
+
+
+def test_loader_falls_back_to_data_config_when_sft_config_is_unusable(tmp_path) -> None:
+    """SFT 元数据不含 tokenizer 时，加载器应使用可用的基础数据配置。"""
+    tokenizer_path = tmp_path / "tokenizer.json"
+    train_bpe(["系统 你好"], vocab_size=64, output_path=tokenizer_path)
+    tokenizer = load_tokenizer(tokenizer_path)
+    config = ModelConfig(
+        vocab_size=tokenizer.get_vocab_size(),
+        n_layer=1,
+        n_head=1,
+        n_embd=8,
+        block_size=8,
+    )
+    checkpoint_path = tmp_path / "checkpoint.pt"
+    save_checkpoint(
+        checkpoint_path,
+        {
+            "model": GPTLanguageModel(config).state_dict(),
+            "model_config": asdict(config),
+            "sft_data_config": {},
+            "data_config": {"tokenizer_path": str(tokenizer_path)},
+        },
+    )
+
+    bundle = DualModelChatService._load_bundle(
+        "test", checkpoint_path, torch.device("cpu")
+    )
+
+    assert bundle.tokenizer.get_vocab_size() == config.vocab_size
