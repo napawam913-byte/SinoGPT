@@ -3,6 +3,7 @@
 import argparse
 from importlib import import_module
 from pathlib import Path
+from threading import Lock
 from typing import Any
 
 import torch
@@ -12,6 +13,40 @@ from sinogpt.demo.chat_service import DualModelChatService, SamplingSettings
 _GRADIO_INSTALL_HINT = 'Gradio is not installed; run python -m pip install -e ".[demo]"'
 _DEFAULT_MODEL_LABEL = "v2 SFT（聊天候选）"
 _DISCLAIMER = "学习实验：回答可能错误，不可作为事实依据或商用服务。"
+
+
+class _SessionGenerationEpochs:
+    """线程安全地记录页面会话的生成代次，不保存聊天内容。"""
+
+    def __init__(self) -> None:
+        self._epochs: dict[str, int] = {}
+        self._lock = Lock()
+
+    def begin(self, session_hash: str | None) -> int:
+        """读取请求所属代次；无页面会话的调用安全退化为无守卫。"""
+        if not session_hash:
+            return 0
+        with self._lock:
+            return self._epochs.setdefault(session_hash, 0)
+
+    def invalidate(self, session_hash: str | None) -> None:
+        """切换模型时使本会话已开始的请求失效。"""
+        if session_hash:
+            with self._lock:
+                self._epochs[session_hash] = self._epochs.get(session_hash, 0) + 1
+
+    def is_current(self, session_hash: str | None, epoch: int) -> bool:
+        """检查请求是否仍属于当前代次。"""
+        if not session_hash:
+            return True
+        with self._lock:
+            return self._epochs.get(session_hash) == epoch
+
+    def forget(self, session_hash: str | None) -> None:
+        """页面卸载后清理其代次，已运行的请求也不再有效。"""
+        if session_hash:
+            with self._lock:
+                self._epochs.pop(session_hash, None)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,9 +101,48 @@ def _response_status(response: Any) -> str:
     )
 
 
+def _submit_message(
+    service: DualModelChatService,
+    guard: _SessionGenerationEpochs,
+    session_hash: str | None,
+    model_label: str,
+    message: str,
+    messages: list[dict[str, Any]] | None,
+    max_new_tokens: int,
+    temperature: float,
+    top_k: int,
+    top_p: float,
+    repetition_penalty: float,
+) -> tuple[list[dict[str, Any]], str, str] | None:
+    """处理一轮提交；返回 None 表示模型已切换，UI 应保留当前状态。"""
+    epoch = guard.begin(session_hash)
+    current_messages = list(messages or [])
+    try:
+        response = service.respond(
+            model_label,
+            message,
+            _extract_complete_history(current_messages),
+            SamplingSettings(
+                max_new_tokens=int(max_new_tokens),
+                temperature=float(temperature),
+                top_k=int(top_k),
+                top_p=float(top_p),
+                repetition_penalty=float(repetition_penalty),
+            ),
+        )
+        current_messages.extend(
+            ({"role": "user", "content": message}, {"role": "assistant", "content": response.text})
+        )
+        result = current_messages, "", _response_status(response)
+    except Exception as error:
+        result = current_messages, message, f"错误：{error}"
+    return result if guard.is_current(session_hash, epoch) else None
+
+
 def build_demo(service: DualModelChatService) -> Any:
     """构建无持久化、可切换模型的 Gradio Blocks 页面。"""
     gr = _require_gradio()
+    guard = _SessionGenerationEpochs()
 
     def respond(
         model_label: str,
@@ -79,30 +153,31 @@ def build_demo(service: DualModelChatService) -> Any:
         top_k: int,
         top_p: float,
         repetition_penalty: float,
-    ) -> tuple[list[dict[str, Any]], str, str]:
-        current_messages = list(messages or [])
-        try:
-            response = service.respond(
-                model_label,
-                message,
-                _extract_complete_history(current_messages),
-                SamplingSettings(
-                    max_new_tokens=int(max_new_tokens),
-                    temperature=float(temperature),
-                    top_k=int(top_k),
-                    top_p=float(top_p),
-                    repetition_penalty=float(repetition_penalty),
-                ),
-            )
-        except Exception as error:
-            return current_messages, message, f"错误：{error}"
-        current_messages.extend(
-            ({"role": "user", "content": message}, {"role": "assistant", "content": response.text})
+        request: gr.Request = None,
+    ) -> tuple[Any, Any, Any]:
+        result = _submit_message(
+            service,
+            guard,
+            getattr(request, "session_hash", None),
+            model_label,
+            message,
+            messages,
+            max_new_tokens,
+            temperature,
+            top_k,
+            top_p,
+            repetition_penalty,
         )
-        return current_messages, "", _response_status(response)
+        return (gr.skip(), gr.skip(), gr.skip()) if result is None else result
 
-    def switch_model(model_label: str) -> tuple[list[dict[str, Any]], str]:
+    def switch_model(
+        model_label: str, request: gr.Request = None
+    ) -> tuple[list[dict[str, Any]], str]:
+        guard.invalidate(getattr(request, "session_hash", None))
         return [], f"已切换至：{model_label}；为避免混用上下文，历史已清空。"
+
+    def forget_session(request: gr.Request = None) -> None:
+        guard.forget(getattr(request, "session_hash", None))
 
     with gr.Blocks(title="SinoGPT 双模型学习演示") as demo:
         gr.Markdown("# SinoGPT 双模型学习演示")
@@ -133,6 +208,7 @@ def build_demo(service: DualModelChatService) -> Any:
             outputs=[chatbot, status],
             cancels=[submit_event, message_submit_event],
         )
+        demo.unload(forget_session)
     return demo
 
 
