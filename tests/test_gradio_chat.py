@@ -47,6 +47,17 @@ def test_extract_complete_history_requires_adjacent_user_assistant_messages() ->
     assert _extract_complete_history(messages) == []
 
 
+def test_extract_complete_history_rejects_nonmessage_gaps() -> None:
+    """非消息对象同样必须中断待配对的 user 消息。"""
+    messages = [
+        {"role": "user", "content": "第一问"},
+        "坏消息对象",
+        {"role": "assistant", "content": "第一答"},
+    ]
+
+    assert _extract_complete_history(messages) == []
+
+
 def test_build_demo_contains_required_warning_and_model_choices() -> None:
     """页面必须呈现固定免责声明与两个中文模型标签。"""
     pytest.importorskip("gradio")

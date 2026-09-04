@@ -39,6 +39,7 @@ def _extract_complete_history(messages: list[dict[str, Any]] | None) -> list[tup
     pending_user: str | None = None
     for item in messages or []:
         if not isinstance(item, dict):
+            pending_user = None
             continue
         role, content = item.get("role"), item.get("content")
         if role == "user" and isinstance(content, str):
