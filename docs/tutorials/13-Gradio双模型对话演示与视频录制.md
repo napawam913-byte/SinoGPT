@@ -4,7 +4,7 @@
 
 ## 1. 目标与边界（约 1 分钟）
 
-本次演示的目标是展示同一道问题在两个 checkpoint 上的输出差异，并记录 checkpoint、token 上限、耗时和 EOS 行为。这是 30M 学习实验：回答可能错误、不可作为事实依据，也不是商用服务。COIG 为混合许可，尚未完成商业清权，因此不要把本演示或数据宣传为已商业可用。
+本次演示的目标是展示同一道问题在两个 checkpoint 上的输出差异，并记录 checkpoint、token 上限、耗时和 EOS 行为。这是 30M 学习实验：回答可能错误、不可作为事实依据；本实验不可商用，也不是商用服务。COIG 为混合许可，尚未完成商业清权。FineWeb2 中文数据记录为 ODC-By 1.0，且上游 Common Crawl 条款尚未完成商业适用性审查；因此本实验不主张任何商业清权。
 
 ## 2. 两个模型与前提（约 1 分钟）
 
@@ -28,7 +28,7 @@ python -m pip install -e ".[demo]"
 python -m sinogpt.cli.gradio_chat --pretrain-checkpoint artifacts/tiny_30m_v2/checkpoints/step_38191.pt --sft-checkpoint artifacts/tiny_30m_v2_coig_sft/checkpoints/best.pt --host 0.0.0.0 --port 7860 --device cuda
 ```
 
-云平台使用普通 **7860 端口映射**访问页面；不使用 `share=True`，也不要创建公开隧道。终端运行时页面可用；演示结束在终端按 `Ctrl+C` 停止。
+云平台使用普通 7860 端口映射访问页面；启动配置明确为 `share=False`，不使用 `share=True`，也不要创建公开隧道。终端运行时页面可用；演示结束在终端按 `Ctrl+C` 停止。
 
 ## 4. 页面操作与记录（约 3 分钟）
 
