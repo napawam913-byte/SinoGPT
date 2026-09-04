@@ -175,6 +175,18 @@ def test_generation_epochs_forget_invalidates_in_flight_request() -> None:
     assert guard.is_current("session-a", epoch) is False
 
 
+def test_generation_epochs_do_not_reuse_epoch_after_forget() -> None:
+    """同名会话重新出现时，旧的运行中请求仍必须保持失效。"""
+    guard = gradio_chat._SessionGenerationEpochs()
+    old_epoch = guard.begin("session-a")
+
+    guard.forget("session-a")
+    new_epoch = guard.begin("session-a")
+
+    assert guard.is_current("session-a", old_epoch) is False
+    assert guard.is_current("session-a", new_epoch) is True
+
+
 def test_build_demo_contains_required_warning_and_model_choices() -> None:
     """页面必须呈现固定免责声明与两个中文模型标签。"""
     pytest.importorskip("gradio")

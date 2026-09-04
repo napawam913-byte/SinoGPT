@@ -20,6 +20,7 @@ class _SessionGenerationEpochs:
 
     def __init__(self) -> None:
         self._epochs: dict[str, int] = {}
+        self._epoch_counter = 0
         self._lock = Lock()
 
     def begin(self, session_hash: str | None) -> int:
@@ -27,13 +28,17 @@ class _SessionGenerationEpochs:
         if not session_hash:
             return 0
         with self._lock:
-            return self._epochs.setdefault(session_hash, 0)
+            if session_hash not in self._epochs:
+                self._epoch_counter += 1
+                self._epochs[session_hash] = self._epoch_counter
+            return self._epochs[session_hash]
 
     def invalidate(self, session_hash: str | None) -> None:
         """切换模型时使本会话已开始的请求失效。"""
         if session_hash:
             with self._lock:
-                self._epochs[session_hash] = self._epochs.get(session_hash, 0) + 1
+                self._epoch_counter += 1
+                self._epochs[session_hash] = self._epoch_counter
 
     def is_current(self, session_hash: str | None, epoch: int) -> bool:
         """检查请求是否仍属于当前代次。"""
