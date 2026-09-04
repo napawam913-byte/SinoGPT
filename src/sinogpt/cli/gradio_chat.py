@@ -42,9 +42,14 @@ def _extract_complete_history(messages: list[dict[str, Any]] | None) -> list[tup
             pending_user = None
             continue
         role, content = item.get("role"), item.get("content")
-        if role == "user" and isinstance(content, str):
+        if role == "user" and isinstance(content, str) and content.strip():
             pending_user = content
-        elif role == "assistant" and isinstance(content, str) and pending_user is not None:
+        elif (
+            role == "assistant"
+            and isinstance(content, str)
+            and content.strip()
+            and pending_user is not None
+        ):
             history.append((pending_user, content))
             pending_user = None
         else:
@@ -118,9 +123,16 @@ def build_demo(service: DualModelChatService) -> Any:
         send = gr.Button("发送")
         status = gr.Markdown("等待输入。")
         inputs = [model, message, chatbot, max_new_tokens, temperature, top_k, top_p, repetition_penalty]
-        send.click(respond, inputs=inputs, outputs=[chatbot, message, status])
-        message.submit(respond, inputs=inputs, outputs=[chatbot, message, status])
-        model.change(switch_model, inputs=model, outputs=[chatbot, status])
+        submit_event = send.click(respond, inputs=inputs, outputs=[chatbot, message, status])
+        message_submit_event = message.submit(
+            respond, inputs=inputs, outputs=[chatbot, message, status]
+        )
+        model.change(
+            switch_model,
+            inputs=model,
+            outputs=[chatbot, status],
+            cancels=[submit_event, message_submit_event],
+        )
     return demo
 
 

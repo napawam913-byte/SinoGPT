@@ -58,6 +58,16 @@ def test_extract_complete_history_rejects_nonmessage_gaps() -> None:
     assert _extract_complete_history(messages) == []
 
 
+def test_extract_complete_history_ignores_eos_only_blank_assistant_response() -> None:
+    """EOS 直接结束留下的空回答不能进入下一轮 prompt 历史。"""
+    messages = [
+        {"role": "user", "content": "第一问"},
+        {"role": "assistant", "content": ""},
+    ]
+
+    assert _extract_complete_history(messages) == []
+
+
 def test_build_demo_contains_required_warning_and_model_choices() -> None:
     """页面必须呈现固定免责声明与两个中文模型标签。"""
     pytest.importorskip("gradio")
