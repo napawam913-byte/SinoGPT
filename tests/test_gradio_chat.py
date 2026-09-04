@@ -36,6 +36,17 @@ def test_extract_complete_history_ignores_unknown_and_incomplete_messages() -> N
     assert _extract_complete_history(messages) == [("第一问", "第一答")]
 
 
+def test_extract_complete_history_requires_adjacent_user_assistant_messages() -> None:
+    """未知或无效消息必须中断待配对的 user 消息。"""
+    messages = [
+        {"role": "user", "content": "第一问"},
+        {"role": "system", "content": "不应跨越"},
+        {"role": "assistant", "content": "第一答"},
+    ]
+
+    assert _extract_complete_history(messages) == []
+
+
 def test_build_demo_contains_required_warning_and_model_choices() -> None:
     """页面必须呈现固定免责声明与两个中文模型标签。"""
     pytest.importorskip("gradio")

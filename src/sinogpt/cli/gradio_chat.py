@@ -46,6 +46,8 @@ def _extract_complete_history(messages: list[dict[str, Any]] | None) -> list[tup
         elif role == "assistant" and isinstance(content, str) and pending_user is not None:
             history.append((pending_user, content))
             pending_user = None
+        else:
+            pending_user = None
     return history
 
 
