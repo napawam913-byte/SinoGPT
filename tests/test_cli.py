@@ -233,5 +233,14 @@ def test_gradio_dual_model_tutorial_has_recording_contract() -> None:
         "本地绝对路径",
         "ODC-By 1.0",
         "Common Crawl",
+        "FineWeb2 中文数据的商业适用性尚未审查",
+        "禁止创建公开隧道",
+        "发布前隐藏 HF token、云账户或浏览器资料",
+        "COIG 为混合许可",
+        "尚未完成商业清权",
+        "本实验不主张任何商业清权",
+        "不使用 `share=True`",
+        "git pull --ff-only origin master",
+        "公开隧道地址",
     ):
         assert required in text
